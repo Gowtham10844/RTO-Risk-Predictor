@@ -1,0 +1,32 @@
+# Python Virtual Environment
+.venv/
+venv/
+env/
+ENV/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
+
+# macOS Metadata
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Environment variables / secrets
+.env
+.env.local
+
+# Editor configs
+.vscode/
+.idea/
+
+# Intermediate generation latents (raw and processed data are preserved)
+data/interim/
