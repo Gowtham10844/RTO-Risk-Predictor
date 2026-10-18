@@ -1,10 +1,11 @@
 """src/train_model.py
 
-Day 2: Data Preprocessing Pipeline & Baseline Logistic Regression Model.
+Pre-Dispatch RTO Risk Predictor: Preprocessing, Baseline & Model Comparison.
 
 This module builds a leakage-safe scikit-learn ColumnTransformer and Pipeline,
-fits strictly on the chronological training split, and generates predictions
-and probability estimates on the validation split.
+fits strictly on the chronological training split, evaluates multiple model
+architectures (Logistic Regression unweighted/balanced and Decision Tree),
+and conducts probability threshold sweeps on the validation split.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -23,6 +25,7 @@ from sklearn.metrics import (
     f1_score,
     roc_auc_score,
     confusion_matrix,
+    classification_report,
 )
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
@@ -144,19 +147,42 @@ def build_preprocessor(
     return preprocessor
 
 
-def build_baseline_pipeline(
+def build_model_pipeline(
+    model_type: str = "logistic_balanced",
     preprocessor: ColumnTransformer = None,
     random_state: int = 42,
 ) -> Pipeline:
-    """Wrap preprocessor and Logistic Regression inside a scikit-learn Pipeline."""
+    """Wrap preprocessor and selected classifier inside a scikit-learn Pipeline.
+
+    Supported model_type options:
+    - 'logistic_unweighted': Baseline LogisticRegression(max_iter=1000)
+    - 'logistic_balanced': Balanced LogisticRegression(class_weight='balanced')
+    - 'decision_tree_balanced': DecisionTreeClassifier(max_depth=5, class_weight='balanced')
+    """
     if preprocessor is None:
         preprocessor = build_preprocessor()
 
-    classifier = LogisticRegression(
-        max_iter=1000,
-        random_state=random_state,
-        solver="lbfgs",
-    )
+    if model_type == "logistic_unweighted":
+        classifier = LogisticRegression(
+            max_iter=1000,
+            random_state=random_state,
+            solver="lbfgs",
+        )
+    elif model_type == "logistic_balanced":
+        classifier = LogisticRegression(
+            max_iter=1000,
+            class_weight="balanced",
+            random_state=random_state,
+            solver="lbfgs",
+        )
+    elif model_type == "decision_tree_balanced":
+        classifier = DecisionTreeClassifier(
+            max_depth=5,
+            class_weight="balanced",
+            random_state=random_state,
+        )
+    else:
+        raise ValueError(f"Unknown model_type: '{model_type}'")
 
     pipeline = Pipeline(
         steps=[
@@ -165,6 +191,18 @@ def build_baseline_pipeline(
         ]
     )
     return pipeline
+
+
+def build_baseline_pipeline(
+    preprocessor: ColumnTransformer = None,
+    random_state: int = 42,
+) -> Pipeline:
+    """Convenience alias for unweighted baseline Logistic Regression pipeline."""
+    return build_model_pipeline(
+        model_type="logistic_unweighted",
+        preprocessor=preprocessor,
+        random_state=random_state,
+    )
 
 
 def train_and_validate(
@@ -192,13 +230,16 @@ def train_and_validate(
     val_preds = pipeline.predict(X_val)
     val_probs = pipeline.predict_proba(X_val)[:, 1]
 
-    # Compute metrics
+    # Compute metrics at default threshold 0.50
     acc = accuracy_score(y_val, val_preds)
     prec = precision_score(y_val, val_preds, zero_division=0)
     rec = recall_score(y_val, val_preds)
     f1 = f1_score(y_val, val_preds)
     roc_auc = roc_auc_score(y_val, val_probs)
     cm = confusion_matrix(y_val, val_preds)
+    report = classification_report(
+        y_val, val_preds, target_names=["Delivered (0)", "RTO (1)"], digits=4
+    )
 
     return {
         "pipeline": pipeline,
@@ -212,15 +253,78 @@ def train_and_validate(
             "roc_auc": roc_auc,
         },
         "confusion_matrix": cm,
+        "classification_report": report,
         "X_val": X_val,
         "y_val": y_val,
     }
+
+
+def evaluate_threshold_sweep(
+    probabilities: np.ndarray,
+    y_val: np.ndarray,
+    thresholds: List[float] = [0.30, 0.40, 0.50],
+) -> pd.DataFrame:
+    """Evaluate precision, recall, F1, and confusion matrix across probability thresholds."""
+    rows = []
+    for t in thresholds:
+        preds = (probabilities >= t).astype(int)
+        acc = accuracy_score(y_val, preds)
+        prec = precision_score(y_val, preds, zero_division=0)
+        rec = recall_score(y_val, preds)
+        f1 = f1_score(y_val, preds)
+        cm = confusion_matrix(y_val, preds)
+        tn, fp, fn, tp = cm.ravel()
+        rows.append(
+            {
+                "threshold": t,
+                "accuracy": acc,
+                "precision": prec,
+                "recall": rec,
+                "f1_score": f1,
+                "tp": tp,
+                "fp": fp,
+                "fn": fn,
+                "tn": tn,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def run_experiments(
+    train: pd.DataFrame,
+    val: pd.DataFrame,
+) -> Dict[str, Any]:
+    """Train and compare all 3 model experiments on validation set."""
+    experiment_configs = {
+        "Logistic Regression (Unweighted)": "logistic_unweighted",
+        "Logistic Regression (Balanced)": "logistic_balanced",
+        "Decision Tree (Balanced, depth=5)": "decision_tree_balanced",
+    }
+
+    results = {}
+    sweep_tables = {}
+
+    for name, mtype in experiment_configs.items():
+        pipe = build_model_pipeline(model_type=mtype)
+        res = train_and_validate(pipe, train, val)
+        results[name] = res
+
+        # Threshold sweep
+        sweep_df = evaluate_threshold_sweep(
+            res["probabilities"], res["y_val"].values, [0.30, 0.40, 0.50]
+        )
+        sweep_tables[name] = sweep_df
+
+    return {"models": results, "threshold_sweeps": sweep_tables}
 
 
 def inspect_model_weights(pipeline: Pipeline) -> pd.DataFrame:
     """Extract and sort learned Logistic Regression coefficients."""
     preprocessor = pipeline.named_steps["preprocessor"]
     classifier = pipeline.named_steps["classifier"]
+
+    if not hasattr(classifier, "coef_"):
+        raise AttributeError("Classifier does not have linear coefficients.")
 
     feature_names = preprocessor.get_feature_names_out()
     coefficients = classifier.coef_[0]
@@ -237,59 +341,57 @@ def inspect_model_weights(pipeline: Pipeline) -> pd.DataFrame:
 
 def main():
     print("=" * 80)
-    print("DAY 2: DATA PREPROCESSING & BASELINE LOGISTIC REGRESSION MODEL")
+    print("MODEL COMPARISON, CLASS IMBALANCE & THRESHOLD TUNING")
     print("=" * 80)
 
     # 1. Load data
     train, val, test = load_data()
-    print(f"\n1. Data Loaded:")
-    print(f"   Train split : {train.shape[0]:,} rows x {train.shape[1]} cols")
-    print(f"   Val split   : {val.shape[0]:,} rows x {val.shape[1]} cols")
-    print(f"   Test split  : {test.shape[0]:,} rows x {test.shape[1]} cols (HELD OUT)")
+    print(f"\n1. Chronological Splits Loaded:")
+    print(f"   Train set : {train.shape[0]:,} orders (Jan 2024 - Jan 2025)")
+    print(f"   Val set   : {val.shape[0]:,} orders (Jan 2025 - Mar 2025)")
+    print(f"   Test set  : {test.shape[0]:,} orders (HELD OUT)")
 
-    # 2. Features
-    print(f"\n2. Selected Features ({len(CATEGORICAL_FEATURES) + len(NUMERICAL_FEATURES)} total):")
-    print(f"   Categorical ({len(CATEGORICAL_FEATURES)}): {CATEGORICAL_FEATURES}")
-    print(f"   Numerical   ({len(NUMERICAL_FEATURES)}): {NUMERICAL_FEATURES}")
-    print(f"   Target: '{TARGET_COLUMN}'")
+    # 2. Run Experiments
+    print("\n2. Training & Evaluating 3 Model Experiments...")
+    exp_output = run_experiments(train, val)
+    models = exp_output["models"]
+    sweeps = exp_output["threshold_sweeps"]
 
-    # 3. Build & Train Pipeline
-    pipeline = build_baseline_pipeline()
-    print("\n3. Fitting Pipeline strictly on (X_train, y_train)...")
-    results = train_and_validate(pipeline, train, val)
-    metrics = results["metrics"]
-
-    print("\n4. Validation Evaluation Metrics (Default threshold = 0.50):")
-    print(f"   Accuracy : {metrics['accuracy']:.4f} ({metrics['accuracy'] * 100:.2f}%)")
-    print(f"   Precision: {metrics['precision']:.4f} ({metrics['precision'] * 100:.2f}%)")
-    print(f"   Recall   : {metrics['recall']:.4f} ({metrics['recall'] * 100:.2f}%)")
-    print(f"   F1-Score : {metrics['f1']:.4f}")
-    print(f"   ROC-AUC  : {metrics['roc_auc']:.4f}")
-
-    print("\n   Confusion Matrix [TN, FP; FN, TP]:")
-    cm = results["confusion_matrix"]
-    print(f"   [[TN={cm[0, 0]:>4}, FP={cm[0, 1]:>4}],")
-    print(f"    [FN={cm[1, 0]:>4}, TP={cm[1, 1]:>4}]]")
-
-    # 5. Inspect Coefficients
-    print("\n5. Top 5 Drivers Increasing RTO Risk (Positive Coefficients):")
-    coef_df = inspect_model_weights(pipeline)
-    print(coef_df.head(5).to_string(index=False))
-
-    print("\n   Top 5 Drivers Decreasing RTO Risk (Negative Coefficients):")
-    print(coef_df.tail(5).to_string(index=False))
-
-    # 6. Sample Validation Probabilities
-    y_val = results["y_val"].values
-    y_pred = results["predictions"]
-    y_prob = results["probabilities"]
-    print("\n6. Sample Validation Predictions (First 5 orders):")
-    for i in range(5):
-        print(
-            f"   Order {i+1}: True={y_val[i]} | Pred={y_pred[i]} | Prob(RTO)={y_prob[i]:.4f} ({y_prob[i]*100:.1f}%)"
+    # 3. Model Comparison Table (at default threshold 0.50)
+    print("\n3. Validation Metrics Comparison (at threshold = 0.50):")
+    comp_rows = []
+    for name, res in models.items():
+        m = res["metrics"]
+        comp_rows.append(
+            {
+                "Model": name,
+                "Accuracy": f"{m['accuracy']:.4f}",
+                "Precision": f"{m['precision']:.4f}",
+                "Recall": f"{m['recall']:.4f}",
+                "F1-Score": f"{m['f1']:.4f}",
+                "ROC-AUC": f"{m['roc_auc']:.4f}",
+            }
         )
+    print(pd.DataFrame(comp_rows).to_string(index=False))
 
-    print("\nDay 2 Implementation Complete.")
+    # 4. Detailed Classification Reports
+    print("\n4. Classification Reports & Confusion Matrices:")
+    for name, res in models.items():
+        print(f"\n--- {name} ---")
+        cm = res["confusion_matrix"]
+        print(f"Confusion Matrix [TN={cm[0,0]}, FP={cm[0,1]}; FN={cm[1,0]}, TP={cm[1,1]}]")
+        print(res["classification_report"])
+
+    # 5. Threshold Sweeps (0.30, 0.40, 0.50)
+    print("\n5. Probability Threshold Sweep Comparison:")
+    for name, sw_df in sweeps.items():
+        print(f"\n[{name}]:")
+        display_df = sw_df.copy()
+        for c in ["accuracy", "precision", "recall", "f1_score"]:
+            display_df[c] = display_df[c].apply(lambda x: f"{x:.4f}")
+        print(display_df.to_string(index=False))
+
+    print("\nModel Evaluation & Threshold Comparison Complete.")
 
 
 if __name__ == "__main__":

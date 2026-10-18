@@ -15,10 +15,10 @@
 - [x] 8. Baseline Logistic Regression training & validation: fit pipeline strictly on training data and generate validation predictions.
 
 ### DAY 3: Model Comparison, Class Imbalance & Threshold Tuning
-- [ ] 9. Baseline evaluation: compute accuracy, precision, recall, F1, confusion matrix, and classification report on validation set.
-- [ ] 10. Model experiments: evaluate unweighted Logistic Regression, balanced Logistic Regression, and Decision Tree (`src/train_model.py`).
-- [ ] 11. Probability threshold comparison: evaluate validation metrics across thresholds (0.30, 0.40, 0.50) without touching test set.
-- [ ] 12. Day 3 evaluation report & concept walkthrough: create `DAY3_EVALUATION.md` justifying chosen model and threshold in business terms.
+- [x] 9. Baseline evaluation: compute accuracy, precision, recall, F1, confusion matrix, and classification report on validation set.
+- [x] 10. Model experiments: evaluate unweighted Logistic Regression, balanced Logistic Regression, and Decision Tree (`src/train_model.py`).
+- [x] 11. Probability threshold comparison: evaluate validation metrics across thresholds (0.30, 0.40, 0.50) without touching test set.
+- [x] 12. Day 3 evaluation report & concept walkthrough: create `DAY3_EVALUATION.md` justifying chosen model and threshold in business terms.
 
 ### DAY 4: Model Serialization & Streamlit Web Application
 - [ ] 13. Model serialization: save winning pipeline to `models/rto_model.joblib` and create `src/predict.py`.
