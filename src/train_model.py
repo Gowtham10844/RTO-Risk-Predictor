@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Tuple, List, Dict, Any, Union
+import joblib
 import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
@@ -339,6 +340,28 @@ def inspect_model_weights(pipeline: Pipeline) -> pd.DataFrame:
     return df_coefs.reset_index(drop=True)
 
 
+def save_winning_model(
+    train: pd.DataFrame = None,
+    output_path: str | Path = "models/rto_model.joblib",
+) -> Pipeline:
+    """Fit the winning Balanced Logistic Regression pipeline and serialize to disk."""
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if train is None:
+        train, _, _ = load_data()
+
+    pipeline = build_model_pipeline(model_type="logistic_balanced")
+    features = CATEGORICAL_FEATURES + NUMERICAL_FEATURES
+    X_train = train[features]
+    y_train = train[TARGET_COLUMN]
+
+    pipeline.fit(X_train, y_train)
+    joblib.dump(pipeline, output_path)
+    print(f"Serialized winning pipeline to: {output_path}")
+    return pipeline
+
+
 def main():
     print("=" * 80)
     print("MODEL COMPARISON, CLASS IMBALANCE & THRESHOLD TUNING")
@@ -391,7 +414,11 @@ def main():
             display_df[c] = display_df[c].apply(lambda x: f"{x:.4f}")
         print(display_df.to_string(index=False))
 
-    print("\nModel Evaluation & Threshold Comparison Complete.")
+    # 6. Save Winning Model Pipeline
+    print("\n6. Serializing Winning Model Pipeline (models/rto_model.joblib)...")
+    save_winning_model(train)
+
+    print("\nModel Evaluation & Serialization Complete.")
 
 
 if __name__ == "__main__":

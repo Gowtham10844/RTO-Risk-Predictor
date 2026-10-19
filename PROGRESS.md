@@ -21,10 +21,10 @@
 - [x] 12. Day 3 evaluation report & concept walkthrough: create `DAY3_EVALUATION.md` justifying chosen model and threshold in business terms.
 
 ### DAY 4: Model Serialization & Streamlit Web Application
-- [ ] 13. Model serialization: save winning pipeline to `models/rto_model.joblib` and create `src/predict.py`.
-- [ ] 14. Streamlit setup: install streamlit and update `requirements.txt`.
-- [ ] 15. Streamlit app development: create interactive `app.py` matching dataset schema with risk badges.
-- [ ] 16. App verification & edge-case testing: test diverse input scenarios ensuring zero runtime errors.
+- [x] 13. Model serialization: save winning pipeline to `models/rto_model.joblib` and create `src/predict.py`.
+- [x] 14. Streamlit setup: install streamlit and update `requirements.txt`.
+- [x] 15. Streamlit app development: create interactive `app.py` matching dataset schema with risk badges.
+- [x] 16. App verification & edge-case testing: test diverse input scenarios ensuring zero runtime errors.
 
 ### DAY 5: Final Test Set Evaluation, Documentation & Interview Prep
 - [ ] 17. End-to-end verification & final test set evaluation: evaluate winning model once on held-out test split.
