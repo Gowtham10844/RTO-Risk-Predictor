@@ -27,7 +27,7 @@
 - [x] 16. App verification & edge-case testing: test diverse input scenarios ensuring zero runtime errors.
 
 ### DAY 5: Final Test Set Evaluation, Documentation & Interview Prep
-- [ ] 17. End-to-end verification & final test set evaluation: evaluate winning model once on held-out test split.
-- [ ] 18. Documentation: create `.gitignore` and comprehensive 10-section `README.md`.
-- [ ] 19. Interview prep guide: create `INTERVIEW_PREP.md` with 2-minute pitch and answers to 10 interview questions.
-- [ ] 20. Final project wrap-up & git push instructions.
+- [x] 17. End-to-end verification & final test set evaluation: evaluate winning model once on held-out test split.
+- [x] 18. Documentation: create `.gitignore` and comprehensive 10-section `README.md`.
+- [x] 19. Interview prep guide: create `INTERVIEW_PREP.md` with 2-minute pitch and answers to 10 interview questions.
+- [x] 20. Final project wrap-up & git push instructions.
