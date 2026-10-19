@@ -2,10 +2,12 @@
 
 An explainable, production-ready Machine Learning system that predicts **Return-to-Origin (RTO)** risk on Indian e-commerce orders prior to warehouse dispatch, enabling merchants to mitigate logistics losses while preserving customer trust.
 
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Streamlit_App-FF4B4B?style=for-the-badge&logo=Streamlit)](https://rto-risk-predictor-gowtham.streamlit.app)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-1.6+-orange.svg)](https://scikit-learn.org/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.50+-FF4B4B.svg)](https://streamlit.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+### 🌐 Live Web Application: [https://rto-risk-predictor-gowtham.streamlit.app](https://rto-risk-predictor-gowtham.streamlit.app)
 
 ---
 
